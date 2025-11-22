@@ -22,12 +22,13 @@ public class AuthRepository {
      * @throws SQLException if a database access error occurs.
      */
     public Optional<UserSessionInfo> findUserByUsername(String username) throws SQLException {
-        String sql = "SELECT id, first_name || ' ' || last_name AS name, password AS hashedPassword, is_manager FROM employees WHERE login = ?";
+        // A query usa LOWER() na coluna e o parâmetro também é convertido para minúsculas
+        // para garantir uma correspondência insensível a maiúsculas e minúsculas.
+        String sql = "SELECT id, first_name || ' ' || last_name AS name, password AS hashedPassword, is_manager FROM employees WHERE LOWER(login) = ?";
 
         try (Connection connection = DBConnection.dbConnection();
              PreparedStatement pstmt = connection.prepareStatement(sql)) {
-
-            pstmt.setString(1, username);
+            pstmt.setString(1, username.toLowerCase());
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {

@@ -15,6 +15,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Tag("unit")
 class DBAuthServiceTest {
 
     private DBAuthService authService;
@@ -54,7 +55,10 @@ class DBAuthServiceTest {
     @DisplayName("1. testAuthenticateSuccess()")
     void testAuthenticateSuccess() throws Exception {
         UserSessionInfo mockUserInfo = new UserSessionInfo(1, "Test User", hashedPassword, false);
-        when(mockAuthRepository.findUserByUsername(testUser)).thenReturn(Optional.of(mockUserInfo));
+        // O repositório agora é insensível a maiúsculas e minúsculas, então o mock retorna o usuário
+        // independentemente do caso. O serviço passa o nome de usuário como está.
+        when(mockAuthRepository.findUserByUsername(testUser.toLowerCase()))
+                .thenReturn(Optional.of(mockUserInfo));
 
         boolean result = authService.authenticate(testUser, testPassword);
 
@@ -62,10 +66,20 @@ class DBAuthServiceTest {
     }
 
     @Test
+    @DisplayName("1.1. testAuthenticateSuccessWithDifferentCase()")
+    void testAuthenticateSuccessWithDifferentCase() throws Exception {
+        UserSessionInfo mockUserInfo = new UserSessionInfo(1, "Test User", hashedPassword, false);
+        // O serviço passa "TestUser" e o repositório mockado é configurado para responder a "testuser".
+        when(mockAuthRepository.findUserByUsername("testuser")).thenReturn(Optional.of(mockUserInfo));
+
+        assertTrue(authService.authenticate("TestUser", testPassword), "Authentication should succeed with a mixed-case username.");
+    }
+
+    @Test
     @DisplayName("2. testAuthenticateFailsWithWrongPassword()")
     void testAuthenticateFailsWithWrongPassword() throws Exception {
         UserSessionInfo mockUserInfo = new UserSessionInfo(1, "Test User", hashedPassword, false);
-        when(mockAuthRepository.findUserByUsername(testUser)).thenReturn(Optional.of(mockUserInfo));
+        when(mockAuthRepository.findUserByUsername(testUser.toLowerCase())).thenReturn(Optional.of(mockUserInfo));
 
         boolean result = authService.authenticate(testUser, "wrongpassword");
 

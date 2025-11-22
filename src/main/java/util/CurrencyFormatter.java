@@ -12,7 +12,7 @@ public class CurrencyFormatter {
      * @param priceInCents The price in cents.
      * @return A formatted currency string.
      */
-    public static String format(int priceInCents) {
+    public static String formatCents(int priceInCents) {
         return CURRENCY_INSTANCE.format(priceInCents / 100.0);
     }
 }

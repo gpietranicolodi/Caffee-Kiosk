@@ -88,10 +88,13 @@ public class CheckoutHandler {
 
             paymentResult.ifPresent(paymentType -> {
                 switch (paymentType) {
-                    case "Cash":
-                        handleCashPayment(customerName);
+                    case "Cash": {
+                        int subtotal = totalsCalculatorService.calculateSubtotal(cartService.getCartItems());
+                        int discount = discountCalculationService.calculateDiscount(subtotal, discountComboBox.getSelectionModel().getSelectedItem(), otherDiscountField.getText(), otherDiscountPercentageCheckBox.isSelected());
+                        int total = totalsCalculatorService.calculateFinalTotal(subtotal, discount);
+                        handleCashPayment(customerName, subtotal, discount, total);
                         break;
-                    case "E-transfer":
+                    } case "E-transfer":
                         handleETransferPayment(customerName);
                         break;
                     case "Credit Card":
@@ -122,22 +125,20 @@ public class CheckoutHandler {
 
         task.setOnSucceeded(e -> Platform.runLater(() -> {
             loadingStage.close();
-            processFinalCheckout(customerName, paymentType, 0, 0);
+            int subtotal = totalsCalculatorService.calculateSubtotal(cartService.getCartItems());
+            int discount = discountCalculationService.calculateDiscount(subtotal, discountComboBox.getSelectionModel().getSelectedItem(), otherDiscountField.getText(), otherDiscountPercentageCheckBox.isSelected());
+            int total = totalsCalculatorService.calculateFinalTotal(subtotal, discount);
+            processFinalCheckout(customerName, paymentType, subtotal, discount, total, 0, 0);
         }));
 
         new Thread(task).start();
         loadingStage.show();
     }
 
-    private void handleCashPayment(String customerName) {
-        double total = totalsCalculatorService.calculateFinalTotal(
-                totalsCalculatorService.calculateSubtotal(cartService.getCartItems()),
-                discountCalculationService.calculateDiscount(totalsCalculatorService.calculateSubtotal(cartService.getCartItems()), discountComboBox.getSelectionModel().getSelectedItem(), otherDiscountField.getText(), otherDiscountPercentageCheckBox.isSelected())
-        );
-
+    private void handleCashPayment(String customerName, int subtotal, int discount, int total) {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Cash Payment");
-        dialog.setHeaderText("Total is " + CurrencyFormatter.format((int) Math.round(total)) + ".\nEnter amount tendered:");
+        dialog.setHeaderText("Total is " + CurrencyFormatter.formatCents(total) + ".\nEnter amount tendered:");
         dialog.setContentText("Amount:");
 
         Optional<String> result = dialog.showAndWait();
@@ -148,12 +149,12 @@ public class CheckoutHandler {
                     showError("Amount tendered is less than the total.");
                     return;
                 }
-                int change = amountTendered - (int) Math.round(total);
-                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Payment successful!\nChange due: " + CurrencyFormatter.format(change));
+                int change = amountTendered - total;
+                Alert alert = new Alert(Alert.AlertType.INFORMATION, "Payment successful!\nChange due: " + CurrencyFormatter.formatCents(change));
                 alert.setTitle("Payment Complete");
                 alert.setHeaderText(null);
                 alert.showAndWait();
-                processFinalCheckout(customerName, "Cash", amountTendered, change);
+                processFinalCheckout(customerName, "Cash", subtotal, discount, total, amountTendered, change);
             } catch (NumberFormatException e) {
                 showError("Invalid amount entered.");
             }
@@ -173,15 +174,15 @@ public class CheckoutHandler {
         }
 
         alert.showAndWait();
-        processFinalCheckout(customerName, "E-transfer", 0, 0);
+        int subtotal = totalsCalculatorService.calculateSubtotal(cartService.getCartItems());
+        int discount = discountCalculationService.calculateDiscount(subtotal, discountComboBox.getSelectionModel().getSelectedItem(), otherDiscountField.getText(), otherDiscountPercentageCheckBox.isSelected());
+        int total = totalsCalculatorService.calculateFinalTotal(subtotal, discount);
+        processFinalCheckout(customerName, "E-transfer", subtotal, discount, total, 0, 0);
     }
 
-    private void processFinalCheckout(String customerName, String paymentType, int amountTendered, int change) {
-        int subtotal = totalsCalculatorService.calculateSubtotal(cartService.getCartItems());
-        Discount selectedDiscount = discountComboBox.getSelectionModel().getSelectedItem();
-        int discountValue = discountCalculationService.calculateDiscount(subtotal, selectedDiscount, otherDiscountField.getText(), otherDiscountPercentageCheckBox.isSelected());
-
-        String receiptContent = receiptBuilderService.buildReceiptContent(customerName, SessionManager.getInstance().getLoggedInEmployeeName(), cartService.getCartItems(), selectedDiscount, discountValue, observationsTextArea.getText(), paymentType, amountTendered, change);
+    private void processFinalCheckout(String customerName, String paymentType, int subtotal, int discountValue, int total, int amountTendered, int change) {
+        String receiptContent = receiptBuilderService.buildReceiptContent(customerName, SessionManager.getInstance().getLoggedInEmployeeName(), cartService.getCartItems(),
+                subtotal, discountValue, total, observationsTextArea.getText(), paymentType, amountTendered, change);
 
         try {
             receiptService.saveReceipt(customerName, SessionManager.getInstance().getLoggedInEmployeeId(), receiptContent.getBytes(StandardCharsets.UTF_8));

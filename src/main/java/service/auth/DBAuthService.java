@@ -32,7 +32,7 @@ public class DBAuthService implements AuthService {
         }
 
         try {
-            Optional<UserSessionInfo> userSessionInfoOpt = authRepository.findUserByUsername(username);
+            Optional<UserSessionInfo> userSessionInfoOpt = authRepository.findUserByUsername(username.toLowerCase());
 
             if (userSessionInfoOpt.isPresent()) {
                 UserSessionInfo userInfo = userSessionInfoOpt.get();

@@ -28,11 +28,13 @@ public class DiscountCalculationService {
         if ("Other".equalsIgnoreCase(selectedDiscount.getName())) {
             if (otherAmountStr != null && !otherAmountStr.trim().isEmpty()) {
                 try {
-                    int otherAmount = Integer.parseInt(otherAmountStr);
+                    // Parse as double to handle decimal inputs (e.g., "2.50")
+                    double otherAmount = Double.parseDouble(otherAmountStr);
                     if (isOtherPercentage) {
-                        discountValue = (subtotal * otherAmount) / 100;
+                        discountValue = (int) Math.round((subtotal * otherAmount) / 100.0);
                     } else {
-                        discountValue = otherAmount;
+                        // O valor já está em centavos, então apenas arredonde.
+                        discountValue = (int) Math.round(otherAmount);
                     }
                 } catch (NumberFormatException e) {
                     // Ignore invalid numbers, discount remains 0
@@ -45,6 +47,9 @@ public class DiscountCalculationService {
                 discountValue = selectedDiscount.getAmount();
             }
         }
-        return discountValue;
+
+        // Ensure the discount value is not negative and does not exceed the subtotal.
+        // This prevents invalid order totals.
+        return Math.max(0, Math.min(discountValue, subtotal));
     }
 }

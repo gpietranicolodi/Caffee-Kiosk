@@ -20,12 +20,8 @@ public class ReceiptBuilderService {
         this.totalsCalculatorService = totalsCalculatorService;
     }
 
-    public String buildReceiptContent(String customerName, String employeeName, List<CartItem> cartItems, Discount discount, int discountValue, String observations, String paymentMethod, int amountTendered, int change) {
+    public String buildReceiptContent(String customerName, String employeeName, List<CartItem> cartItems, int subtotal, int discountValue, int total, String observations, String paymentMethod, int amountTendered, int change) {
         StringBuilder receipt = new StringBuilder();
-        int subtotal = totalsCalculatorService.calculateSubtotal(cartItems);
-        double subtotalAfterDiscount = subtotal - discountValue;
-        double tax = totalsCalculatorService.calculateTax(subtotalAfterDiscount);
-        double total = subtotalAfterDiscount + tax;
 
         receipt.append("\tOOP Caffee\n");
         receipt.append("----------------------------------------------------\n");
@@ -36,23 +32,24 @@ public class ReceiptBuilderService {
 
         for (CartItem item : cartItems) {
             String lineItem = String.format("%d x %s", item.getQuantity(), item.getItem().getName());
-            String lineTotal = CurrencyFormatter.format(item.getItem().getPrice() * item.getQuantity());
+            String lineTotal = CurrencyFormatter.formatCents(item.getPriceAtTimeOfSale() * item.getQuantity());
             receipt.append(String.format("%-38s %12s\n", lineItem, lineTotal));
         }
 
         receipt.append("----------------------------------------------------\n");
-        receipt.append(String.format("%-38s %12s\n", "Subtotal:", CurrencyFormatter.format(subtotal)));
+        receipt.append(String.format("%-38s %12s\n", "Subtotal:", CurrencyFormatter.formatCents(subtotal)));
 
         if (discountValue > 0) {
-            String discountName = (discount != null && !"Other".equalsIgnoreCase(discount.getName())) ? discount.getName() : "";
-            String discountLabel = "Discount" + (!discountName.isEmpty() ? " (" + discountName + ")" : "") + ":";
-            receipt.append(String.format("%-38s %12s\n", discountLabel, "-" + CurrencyFormatter.format(discountValue)));
+            String discountLabel = "Discount:";
+            receipt.append(String.format("%-38s %12s\n", discountLabel, "-" + CurrencyFormatter.formatCents(discountValue)));
         }
 
-        String taxText = "Tax (" + Math.round(TotalsCalculatorService.TAX_RATE * 100) + "%):";
-        receipt.append(String.format("%-38s %12s\n", taxText, CurrencyFormatter.format((int) tax)));
+        int subtotalAfterDiscount = subtotal - discountValue;
+        int tax = totalsCalculatorService.calculateTax(subtotalAfterDiscount);
+        String taxText = "Tax (" + (TotalsCalculatorService.TAX_RATE_INTEGER / 100) + "%):";
+        receipt.append(String.format("%-38s %12s\n", taxText, CurrencyFormatter.formatCents(tax)));
 
-        receipt.append(String.format("%-38s %12s\n", "TOTAL:", CurrencyFormatter.format((int) total)));
+        receipt.append(String.format("%-38s %12s\n", "TOTAL:", CurrencyFormatter.formatCents(total)));
         receipt.append("----------------------------------------------------\n");
 
         if (observations != null && !observations.trim().isEmpty()) {
@@ -62,8 +59,8 @@ public class ReceiptBuilderService {
 
         receipt.append(String.format("%-25s %s\n", "Payment Method:", paymentMethod));
         if ("Cash".equals(paymentMethod)) {
-            receipt.append(String.format("%-38s %12s\n", "Amount Tendered:", CurrencyFormatter.format(amountTendered)));
-            receipt.append(String.format("%-38s %12s\n", "Change:", CurrencyFormatter.format(change)));
+            receipt.append(String.format("%-38s %12s\n", "Amount Tendered:", CurrencyFormatter.formatCents(amountTendered)));
+            receipt.append(String.format("%-38s %12s\n", "Change:", CurrencyFormatter.formatCents(change)));
         }
         receipt.append("\n\tThank you for your visit!\n");
         return receipt.toString();

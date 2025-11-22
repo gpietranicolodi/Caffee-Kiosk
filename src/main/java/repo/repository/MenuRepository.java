@@ -69,12 +69,21 @@ public class MenuRepository {
      * @throws SQLException if a database access error occurs.
      */
     public void updateInventory(int itemId, int quantity) throws SQLException {
-        String sql = "UPDATE items SET inventory = inventory - ? WHERE id = ?";
+        // The SQL query now includes a check to ensure inventory is sufficient BEFORE updating.
+        // This makes the operation atomic and safe from race conditions.
+        String sql = "UPDATE items SET inventory = inventory - ? WHERE id = ? AND inventory >= ?";
         try (Connection conn = DBConnection.dbConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setInt(1, quantity);
             pstmt.setInt(2, itemId);
-            pstmt.executeUpdate();
+            pstmt.setInt(3, quantity);
+            int affectedRows = pstmt.executeUpdate();
+
+            // If no rows were affected, it means the condition (inventory >= ?) was not met.
+            if (affectedRows == 0) {
+                // This will be caught by the CheckoutHandler and displayed to the user.
+                throw new SQLException("Insufficient stock for the selected item. The order could not be completed.");
+            }
         }
     }
 

@@ -17,6 +17,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Tag("unit")
 class DBReceiptServiceTest {
 
     private DBReceiptService dbReceiptService;

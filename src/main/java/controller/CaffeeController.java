@@ -94,10 +94,10 @@ public class CaffeeController {
 
         cartItemNameColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getItem().getName()));
         cartItemQtyColumn.setCellValueFactory(new PropertyValueFactory<>("quantity"));
-        cartItemPriceColumn.setCellValueFactory(cellData -> new SimpleStringProperty(CurrencyFormatter.format(cellData.getValue().getItem().getPrice())));
+        cartItemPriceColumn.setCellValueFactory(cellData -> new SimpleStringProperty(CurrencyFormatter.formatCents(cellData.getValue().getPriceAtTimeOfSale())));
         cartItemTotalColumn.setCellValueFactory(cellData -> {
-            int total = cellData.getValue().getItem().getPrice() * cellData.getValue().getQuantity();
-            return new SimpleStringProperty(CurrencyFormatter.format(total));
+            int total = cellData.getValue().getPriceAtTimeOfSale() * cellData.getValue().getQuantity();
+            return new SimpleStringProperty(CurrencyFormatter.formatCents(total));
         });
     }
 
@@ -210,7 +210,9 @@ public class CaffeeController {
 
     @FXML
     private void handleShowHistory() {
-        historyController.showHistory();
+        if (historyController != null) {
+            historyController.showHistory();
+        }
     }
 
     public void refreshCart() {
@@ -235,18 +237,15 @@ public class CaffeeController {
 
     private void updateTotals() {
         int subtotal = totalsCalculatorService.calculateSubtotal(cartService.getCartItems());
-        int discountValue = discountCalculationService.calculateDiscount(subtotal, discountComboBox.getSelectionModel().getSelectedItem(), otherDiscountField.getText(), otherDiscountPercentageCheckBox.isSelected());
-        double subtotalAfterDiscount = subtotal - discountValue;
-        double tax = totalsCalculatorService.calculateTax(subtotalAfterDiscount);
-        double total = subtotalAfterDiscount + tax;
+        int discount = discountCalculationService.calculateDiscount(subtotal, discountComboBox.getSelectionModel().getSelectedItem(), otherDiscountField.getText(), otherDiscountPercentageCheckBox.isSelected());
 
-        subtotalLabel.setText("Subtotal: " + CurrencyFormatter.format(subtotal));
-        discountLabel.setText("Discount: -" + CurrencyFormatter.format(discountValue));
+        TotalsCalculatorService.OrderTotals totals = totalsCalculatorService.calculateAllTotals(cartService.getCartItems(), discount);
+
+        subtotalLabel.setText("Subtotal: " + CurrencyFormatter.formatCents(totals.getSubtotal()));
+        discountLabel.setText("Discount: -" + CurrencyFormatter.formatCents(totals.getDiscount()));
         
-        String taxString = "Tax (" + Math.round(TotalsCalculatorService.TAX_RATE * 100) + "%): " + CurrencyFormatter.format((int) tax);
-        taxLabel.setText(taxString);
-
-        totalLabel.setText("Total: " + CurrencyFormatter.format((int) total));
+        taxLabel.setText("Tax (" + (TotalsCalculatorService.TAX_RATE_INTEGER / 100) + "%): " + CurrencyFormatter.formatCents(totals.getTax()));
+        totalLabel.setText("Total: " + CurrencyFormatter.formatCents(totals.getTotal()));
     }
 
     private void showError(String message) {
@@ -294,7 +293,7 @@ public class CaffeeController {
             if (empty || price == null) {
                 setText(null);
             } else {
-                setText(CurrencyFormatter.format(price));
+                setText(CurrencyFormatter.formatCents(price));
             }
         }
     }
